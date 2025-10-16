@@ -393,7 +393,7 @@ async def lifespan(app: FastAPI):
     print("--- Lifespan startup ---")
     get_supabase_client()
     chroma_client_global = get_chroma_client()
-    embeddings_global = initialize_embeddings()
+    #embeddings_global = initialize_embeddings()
     db_cleanup_timer = threading.Timer(120, clear_short_term_memory_db)
     db_cleanup_timer.daemon = True
     db_cleanup_timer.start()
@@ -501,6 +501,15 @@ def api_get_chat_history(username: str, chatname: str):
 
 @app.post("/api/chat")
 def api_chat(req: ChatRequest):
+    global embeddings_global # Make sure we can modify the global variable
+
+    # --- LAZY LOADING LOGIC ---
+    # Check if the model has been loaded yet. If not, initialize it.
+    if embeddings_global is None:
+        print("[System] First request received. Initializing embeddings model now...")
+        embeddings_global = initialize_embeddings()
+        print("[System] Embeddings model initialized.")
+    # --- END OF LAZY LOADING LOGIC
     if req.model not in SUPPORTED_MODELS:
         raise HTTPException(status_code=400, detail="Unsupported model")
 
@@ -546,4 +555,5 @@ def api_chat(req: ChatRequest):
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000)
+
 
